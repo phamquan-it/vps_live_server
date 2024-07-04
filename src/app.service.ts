@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { exec } from 'child_process';
 import {
   ClientProxy,
   ClientProxyFactory,
@@ -24,23 +25,23 @@ export class AppService {
     return 'Hello World!';
   }
   async sendSystemInformation() {
-    si.getAllData()
-      .then((data) => {
-        try {
-          // Send system information to the server via TCP
-          this.client.emit<any>('system_information', {
-            bios: data.bios,
-            cpu: data.cpu,
-            os: data.os,
-            partition: data.fsSize,
-            memory: data.mem,
-          });
-        } catch (error) {
-          console.error('Error fetching or sending system information:', error);
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
+    const cpu = await si.cpu();
+    const mem = await si.mem();
+    const os = await si.osInfo();
+    exec('ipv4', (error, stdout) => {
+      if (error) {
+        console.error(`exec error: ${error}`);
+        return;
+      }
+
+      const ipv4 = stdout.trim().split(' ')[3]; // Extract the IP address from the output
+
+      this.client.emit<any>('system_information', {
+        ipv4: ipv4,
+        cpu: cpu,
+        os: os,
+        memory: mem,
       });
+    });
   }
 }
